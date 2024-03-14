@@ -1,0 +1,83 @@
+stages:
+  - deploy
+  - notify
+
+deploy-uat:
+  stage: deploy
+  only: 
+    - deploy_dev
+  variables:
+    IMAGE_TAG_CURRENT: $CI_REGISTRY_IMAGE/uat:1.0.$CI_PIPELINE_IID
+    IMAGE_TAG_RELEASE: $CI_REGISTRY_IMAGE/uat:latest
+    STACK_NAME: minierp_frontend
+  tags:
+    - 'mini_erp_frontend_uat'
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --pull -t $IMAGE_TAG_CURRENT . -f Dockerfile.uat
+    - docker tag $IMAGE_TAG_CURRENT $IMAGE_TAG_RELEASE
+    - docker push $IMAGE_TAG_CURRENT
+    - docker push $IMAGE_TAG_RELEASE
+    - echo $IMAGE_TAG_RELEASE
+    - docker stack rm $STACK_NAME
+    - docker stack deploy -c docker-stack.uat.yml $STACK_NAME --with-registry-auth
+
+notify-success-uat:
+  only: 
+    - deploy_dev
+  stage: notify
+  when: on_success
+  tags:
+    - 'mini_erp_frontend_uat'
+  script:
+    - 'curl --location --request POST https://notify-api.line.me/api/notify --header "Content-Type: application/x-www-form-urlencoded" --header "Authorization: Bearer $TOKEN_LINE_NOTIFY" --data-urlencode "message=deploy frontend (uat) success: 1.0.$CI_PIPELINE_IID" --data-urlencode "stickerPackageId=789" --data-urlencode "stickerId=10858"'
+
+notify-fail-uat:
+  only: 
+    - deploy_dev
+  stage: notify
+  when: on_failure
+  tags:
+    - 'mini_erp_frontend_uat'
+  script:
+    - 'curl --location --request POST https://notify-api.line.me/api/notify --header "Content-Type: application/x-www-form-urlencoded" --header "Authorization: Bearer $TOKEN_LINE_NOTIFY" --data-urlencode "message=deploy frontend (uat) fail" --data-urlencode "stickerPackageId=789" --data-urlencode "stickerId=10860"'
+
+deploy-prd:
+  stage: deploy
+  only: 
+    - deploy_prd
+  variables:
+    IMAGE_TAG_CURRENT: $CI_REGISTRY_IMAGE/prd:1.0.$CI_PIPELINE_IID
+    IMAGE_TAG_RELEASE: $CI_REGISTRY_IMAGE/prd:latest
+    STACK_NAME: front
+  tags:
+    - 'mini_erp_frontend_prd'
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build --pull -t $IMAGE_TAG_CURRENT . -f Dockerfile.prd
+    - docker tag $IMAGE_TAG_CURRENT $IMAGE_TAG_RELEASE
+    - docker push $IMAGE_TAG_CURRENT
+    - docker push $IMAGE_TAG_RELEASE
+    - echo $IMAGE_TAG_RELEASE
+    - docker stack rm $STACK_NAME
+    - docker stack deploy -c docker-stack.prd.yml $STACK_NAME --with-registry-auth
+
+notify-success-prd:
+  only: 
+    - deploy_prd
+  stage: notify
+  when: on_success
+  tags:
+    - 'mini_erp_frontend_prd'
+  script:
+    - 'curl --location --request POST https://notify-api.line.me/api/notify --header "Content-Type: application/x-www-form-urlencoded" --header "Authorization: Bearer $TOKEN_LINE_NOTIFY" --data-urlencode "message=deploy frontend (prd) success: 1.0.$CI_PIPELINE_IID" --data-urlencode "stickerPackageId=789" --data-urlencode "stickerId=10858"'
+
+notify-fail-prd:
+  only: 
+    - deploy_prd
+  stage: notify
+  when: on_failure
+  tags:
+    - 'mini_erp_frontend_prd'
+  script:
+    - 'curl --location --request POST https://notify-api.line.me/api/notify --header "Content-Type: application/x-www-form-urlencoded" --header "Authorization: Bearer $TOKEN_LINE_NOTIFY" --data-urlencode "message=deploy frontend (prd) fail" --data-urlencode "stickerPackageId=789" --data-urlencode "stickerId=10860"'
